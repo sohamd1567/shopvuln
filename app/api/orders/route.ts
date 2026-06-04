@@ -1,17 +1,19 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
+export async function GET({ url }) {
   const session = await auth();
 
   if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
   }
 
-  const orders = await prisma.order.findMany({
-    where: { userId: session.user.id },
-    orderBy: { createdAt: "desc" }
-  });
+  const orderId = url.pathname.split('/').pop();
+  const order = await prisma.order.findUnique({ where: { id: orderId } });
 
-  return Response.json(orders);
+  if (!order || order.userId !== session.user.id) {
+    return new Response(JSON.stringify({ error: "Forbidden" }), { status: 403 });
+  }
+
+  return new Response(JSON.stringify(order));
 }
